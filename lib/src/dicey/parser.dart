@@ -4,65 +4,95 @@ import 'package:petitparser/parser.dart';
 class DiceyGrammar extends GrammarDefinition {
   Parser token(Object input) {
     if (input is Parser) {
-      print('DiceGrammar.token(input=$input is Parser)');
-      return input.token().trim();
+      return input.token().trim(ref0(ignorables));
     } else if (input is String) {
-      print('DiceGrammar.token(input=$input is String)');
       return token(input.toParser());
+    } else if (input is List<String>) {
+      return token(
+          ChoiceParser([for (String choice in input) choice.toParser()]));
     }
-    throw ArgumentError.value(input, 'Invalid token parser');
+    throw ArgumentError.value(input, 'Invalid token parser [input]=$input');
   }
 
   // -----------------------------------------------------------
   // Keyword definitions
   // -----------------------------------------------------------
   Parser chooseToken() => ref1(token, 'choose');
-  Parser firstToken() => ref1(token, 'first');
-  Parser lastToken() => ref1(token, 'last');
-  Parser lowestToken() => ref1(token, 'lowest');
-  Parser highestToken() => ref1(token, 'highest');
-
+  Parser firstToken() => ref1(token, ['<', 'first']);
+  Parser highestToken() => ref1(token, ['^', 'highest']);
+  Parser lastToken() => ref1(token, ['>', 'last']);
+  Parser lowestToken() => ref1(token, ['v', 'lowest']);
   Parser ofToken() => ref1(token, 'of');
+  Parser additionToken() => ref1(token, ['+', 'plus']);
+  Parser subtractionToken() => ref1(token, ['-', 'minus']);
+  Parser multiplicationToken() => ref1(token, ['*', 'x', 'times']);
+  Parser divisionToken() => ref1(token, ['/', '÷', 'divided by']);
+  Parser ignorables() => whitespace().star();
 
-  Parser additionToken() => [
-        ref1(token, '+'),
-        ref1(token, 'plus'),
+  Parser formulaTerms() =>
+      [ref0(formulaTerm), ref0(modifierTerm).star()].toSequenceParser();
+
+  Parser formulaTerm() => [
+        ref0(listTerm),
+        // ref0(diceTerm),
+        // ref0(constantTerm),
       ].toChoiceParser();
 
-  Parser subtractionToken() => [
-        ref1(token, '-'),
-        ref1(token, 'minus'),
+  Parser listTerm() => [
+        ref1(rigidList, ref0(formulaTerms)),
+        ref1(yieldingList, ref0(formulaTerms)),
+        ref1(randomList, ref0(formulaTerms)),
+        ref1(uniqueList, ref0(formulaTerms)),
       ].toChoiceParser();
 
-  Parser multiplicationToken() => [
-        ref1(token, '*'),
-        ref1(token, 'x'),
-        ref1(token, 'times')
-      ].toChoiceParser();
+  Parser rigidList(Parser parser) => [
+        char('[').trim(),
+        parser,
+        char(']').trim(),
+      ].toSequenceParser();
 
-  Parser divisionToken() => [
-        ref1(token, '/'),
-        ref1(token, '÷'),
-        ref1(token, 'divided by')
+  Parser yieldingList(Parser parser) => [
+        char('(').trim(),
+        parser,
+        char(')').trim(),
+      ].toSequenceParser();
+
+  Parser randomList(Parser parser) => [
+        char('%').trim(),
+        parser,
+        char('%').trim(),
+      ].toSequenceParser();
+
+  Parser uniqueList(Parser parser) => [
+        char('{').trim(),
+        parser,
+        char('}').trim(),
+      ].toSequenceParser();
+
+  Parser roll() => [
+        // '3d6', 'd12', etc
+        ref0(diceToken),
+        ref0(ge0),
       ].toChoiceParser();
 
   Parser diceToken() => [
         (whitespace().star() & dieQuantity().optional()).flatten().trim(),
         char('d'),
-        GeqToTwo(),
+        ge2(),
       ].toSequenceParser();
 
   // -----------------------------------------------------------
   // Grammar productions
   // -----------------------------------------------------------
+
   @override
   Parser start() => ref0(rolls).end();
 
   Parser rolls() => [
         ref0(setDirective),
         ref0(roll),
-        ref0(modifier),
-      ].toChoiceParser();
+        ref0(modifierTerm),
+      ].toChoiceParser(failureJoiner: selectFarthest);
 
   Parser setDirective() => [
         char('(').trim(),
@@ -70,17 +100,11 @@ class DiceyGrammar extends GrammarDefinition {
         char(')'),
       ].toSequenceParser();
 
-  Parser roll() => [
-        // '3d6', 'd12', etc
-        ref0(diceToken),
-        ref0(GeqToZero),
-      ].toChoiceParser();
+  Parser dieQuantity() => ref0(ge1);
 
-  Parser dieQuantity() => ref0(GeqToOne);
+  Parser dieSides() => ref0(ge2);
 
-  Parser dieSides() => ref0(GeqToTwo);
-
-  Parser modifier() => [
+  Parser modifierTerm() => [
         ref0(modifierOperator),
         ref0(rolls),
       ].toSequenceParser();
@@ -95,14 +119,14 @@ class DiceyGrammar extends GrammarDefinition {
         ref0(rolls),
       ].toSequenceParser();
 
-  Parser GeqToZero() => digit().plus().flatten().map(int.parse);
+  Parser ge0() => digit().plus().flatten().map(int.parse);
 
-  Parser GeqToOne() => [
+  Parser ge1() => [
         ref0(countingDigit),
         digit().star(),
       ].toSequenceParser().flatten();
 
-  Parser GeqToTwo() => [
+  Parser ge2() => [
         range('2', '9', 'number >= 2 expected'),
         digit().star(),
       ].toSequenceParser().flatten();
