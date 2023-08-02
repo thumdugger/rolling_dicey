@@ -2,7 +2,7 @@ import 'package:petitparser/petitparser.dart';
 
 class DiceyGrammar extends GrammarDefinition {
   @override
-  Parser start() => throw UnsupportedError('Only rules parsing is supported.');
+  Parser start() => rolls().star().end();
 
   Parser token(Object parser, [String? message]) {
     if (parser is Parser) {
