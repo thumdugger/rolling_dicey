@@ -2,7 +2,9 @@ import 'package:petitparser/petitparser.dart';
 
 class DiceyGrammar extends GrammarDefinition {
   @override
-  Parser start() => rolls().star().end();
+  Parser start() => ref0(diceRoll).star().end();
+  Parser diceRoll() => ref0(roll).trim(ref0(space));
+  Parser space() => whitespace();
 
   Parser token(Object parser, [String? message]) {
     if (parser is Parser) {
