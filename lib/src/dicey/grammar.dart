@@ -2,7 +2,38 @@ import 'package:petitparser/petitparser.dart';
 
 class DiceyGrammar extends GrammarDefinition {
   @override
-  Parser start() => throw UnsupportedError('Only rules parsing is supported.');
+  Parser start() => ref0(diceRoll).star().end();
+
+  Parser diceRoll() => [
+    ref0(assignment).optional(),
+    ref0(roll),
+    ref0(actions).star(),
+  ].toSequenceParser();
+
+  Parser assignment() => [
+    ref0(label).trim(ref0(space)),
+    char('=').trim(ref0(space)),
+  ].toSequenceParser();
+
+  Parser roll() => [
+    ref0(diceQuantity).optional(),
+    ref0(diceOperator),
+    ref0(diceSides),
+    ref0(diceModifier).optional(),
+  ].toSequenceParser();
+
+  Parser diceQuantity => [
+    ref0(digitZero),
+    ref0(digitNonZero) & digit().star(),
+  ].toChoiceParser();
+
+  Parser digitZero() => char('0');
+  Parser digitNonZero() => range('1', '9');
+  Parser diceOperator() => anyOf('dD');
+
+
+
+  Parser space() => whitespace();
 
   Parser token(Object parser, [String? message]) {
     if (parser is Parser) {
