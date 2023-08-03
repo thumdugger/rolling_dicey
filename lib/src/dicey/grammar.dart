@@ -2,105 +2,69 @@ import 'package:petitparser/petitparser.dart';
 
 class DiceyGrammar extends GrammarDefinition {
   @override
-  Parser start() => ref0(diceRoll).star().end();
+  Parser start() => [
+        ref0(assignment).optional().trim(),
+        ref0(roll).trim(),
+        ref0(actions).star(),
+      ].toSequenceParser().end();
 
-  Parser diceRoll() => [
-    ref0(assignment).optional(),
-    ref0(roll),
-    ref0(actions).star(),
-  ].toSequenceParser();
-
-  Parser assignment() => [
-    ref0(label).trim(ref0(space)),
-    char('=').trim(ref0(space)),
-  ].toSequenceParser();
+  // TODO define assignment action
+  Parser assignment() => undefined();
 
   Parser roll() => [
-    ref0(diceQuantity).optional(),
-    ref0(diceOperator),
-    ref0(diceSides),
-    ref0(diceModifier).optional(),
-  ].toSequenceParser();
+        [ref0(dice), ref0(modifier).star()].toSequenceParser(),
+        ref0(quantity),
+      ].toChoiceParser();
 
-  Parser diceQuantity => [
-    ref0(digitZero),
-    ref0(digitNonZero) & digit().star(),
-  ].toChoiceParser();
+  /// Production for dice operator of form: (quantity)? 'd' (sides)
+  Parser dice() => [
+        ref0(quantity).optional(),
+        char('d'),
+        ref0(sides),
+      ].toSequenceParser();
+
+  /// Production for numeric values that are without leading zeroes or
+  /// are zero.
+  Parser quantity() => [
+        ref0(digitZero),
+        [
+          ref0(digitNonZero),
+          digit().star(),
+        ].toSequenceParser(),
+      ].toChoiceParser().flatten().trim();
 
   Parser digitZero() => char('0');
-  Parser digitNonZero() => range('1', '9');
-  Parser diceOperator() => anyOf('dD');
 
+  Parser digitNonZero() => pattern('1-9');
 
+  Parser sides() => [
+        [
+          ref0(digitZero),
+          ref0(digitNonZero),
+          digit().star(),
+        ].toSequenceParser(),
+        ref0(quantity),
+      ].toChoiceParser().flatten().trim();
 
-  Parser space() => whitespace();
+  Parser modifier() => [
+        anyOf('+-*/'),
+        ref0(quantity),
+      ].toSequenceParser();
 
-  Parser token(Object parser, [String? message]) {
-    if (parser is Parser) {
-      return parser.flatten(message).trim();
-    } else if (parser is List<String>) {
-      return token(
-          ChoiceParser([for (String choice in parser) choice.toParser()]));
-    } else if (parser is String) {
-      return token(parser.toParser(message: message ?? '$parser expected'));
-    }
-    throw ArgumentError.value(parser, 'parser', 'Invalid parser type');
-  }
+  Parser actions() => ref0(action) & ref0(actions).star();
 
-  Parser numberGT(int lesser) {
-    return ref0(number).where((value) => num.parse(value) > lesser,
-        failureFactory: (context, success) =>
-            context.failure('value is not int parseable'));
-  }
+  Parser action() => [
+        ref0(choose),
+        ref0(drop),
+        ref0(reroll),
+      ].toChoiceParser();
 
-  Parser rules() => ref0(rule).star();
-  Parser rule() => ref0(roll) & ref0(action).star();
+  // TODO define choose action
+  Parser choose() => failure('TODO define choose action');
 
-  Parser roll() => ref0(rollToken).optional() & (ref0(dice) | ref0(number));
-  Parser rollToken() => ref1(token, 'roll');
-  Parser dice() =>
-      (ref0(number).optional() & ref0(diceToken) & ref1(numberGT, 1)) |
-      ref0(number);
-  Parser number() => (anyOf('+-').optional() &
-          ((range('1', '9') & digit().star()) | char('0')))
-      .flatten()
-      .trim();
-  Parser diceToken() => ref1(token, 'd');
+  // TODO define drop action
+  Parser drop() => failure('TODO define drop action');
 
-  Parser action() =>
-      ref0(keepingAction) |
-      ref0(sortingAction) |
-      ref0(rerollingAction) |
-      ref0(droppingAction);
-
-  Parser keepingAction() => ref0(keepingToken) & ref0(keepingOption).optional();
-  Parser keepingToken() => ref1(token, 'keeping');
-  Parser keepingOption() => ref0(standardOption);
-
-  Parser standardOption() =>
-      (ref0(firstToken) |
-          ref0(lastToken) |
-          ref0(highestToken) |
-          ref0(lowestToken) |
-          ref0(randomToken)) &
-      ref1(numberGT, 0).optional();
-  Parser firstToken() => ref1(token, 'first');
-  Parser lastToken() => ref1(token, 'last');
-  Parser highestToken() => ref1(token, 'highest');
-  Parser lowestToken() => ref1(token, 'lowest');
-  Parser randomToken() => ref1(token, 'random');
-
-  Parser sortingAction() => ref0(sortingToken) & ref0(sortingOption).optional();
-  Parser sortingToken() => ref1(token, 'sorting');
-  Parser sortingOption() => ref0(standardOption);
-
-  Parser rerollingAction() =>
-      ref0(rerollingToken) & ref0(rerollingOption).optional();
-  Parser rerollingToken() => ref1(token, 'rerolling');
-  Parser rerollingOption() => ref0(standardOption);
-
-  Parser droppingAction() =>
-      ref0(droppingToken) & ref0(droppingOption).optional();
-  Parser droppingToken() => ref1(token, 'dropping');
-  Parser droppingOption() => ref0(standardOption);
+  // TODO define reroll action
+  Parser reroll() => failure('TODO define reroll action');
 }
