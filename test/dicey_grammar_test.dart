@@ -1,6 +1,6 @@
 import 'package:petitparser/debug.dart';
 import 'package:petitparser/reflection.dart';
-import 'package:rolling_dicey/src/dicey/grammar.dart';
+import 'package:rolling_dicey/src/grammar.dart';
 import 'package:test/test.dart';
 
 final grammar = DiceyGrammar();
